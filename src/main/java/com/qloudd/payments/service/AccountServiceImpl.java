@@ -112,6 +112,13 @@ public class AccountServiceImpl implements AccountService {
         return account;
     }
 
+    /**
+     * @Deprecated No need to update account. Just close it and start another
+     * @param accountId
+     * @param account
+     * @return
+     * @throws AccountUpdateException
+     */
     @Override
     public Account update(Long accountId, Account account) throws AccountUpdateException {
         LOG.update(Function.ACCOUNT_UPDATE, account.getAccountNumber());
