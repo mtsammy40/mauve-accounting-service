@@ -1,0 +1,46 @@
+syntax = "proto3";
+option java_multiple_files = true;
+package com.qloudd.payments.proto;
+
+message AccountCreationRequest {
+  int32 userId = 1;
+  int32 accountTypeId = 2;
+}
+
+message AccountCreationResponse {
+  string responseCode = 1;
+  string accountNumber = 2;
+  string balance = 3;
+}
+
+// Account Type Creation
+message AccountTypeCreationRequest {
+  string name = 1;
+  string status = 2;
+  Configuration configurations = 3;
+}
+
+// Account Type Creation Response
+message AccountTypeCreationResponse {
+  int32 id = 1;
+}
+
+message Configuration {
+  int32 max_debit_limit = 1;
+  int32 min_debit_limit = 2;
+  repeated Charge charges = 4;
+}
+
+message Charge {
+  string name = 1;
+  string charge_type = 2;
+  string destination_account = 3;
+}
+
+service AccountService {
+  rpc create(AccountCreationRequest) returns (AccountCreationResponse);
+}
+
+service AccountTypeService {
+  rpc create(AccountTypeCreationRequest) returns (AccountTypeCreationResponse);
+}
