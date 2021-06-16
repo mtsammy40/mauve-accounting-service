@@ -67,7 +67,7 @@ public class ApiController {
     }
 
     @PutMapping("/accounts/{id}")
-    public ResponseEntity<Account> createAccount(@PathVariable Long id, @RequestBody() Account account) {
+    public ResponseEntity<Account> updateAccount(@PathVariable Long id, @RequestBody() Account account) {
         try {
             account = accountService.update(id, account);
             return ResponseEntity.of(Optional.of(account));
