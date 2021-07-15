@@ -1,10 +1,11 @@
-package com.qloudd.payments.service;
+package com.qloudd.payments.service.impl;
 
 import com.qloudd.payments.commons.CustomLogger;
 import com.qloudd.payments.commons.Function;
 import com.qloudd.payments.commons.Validator;
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.AccountType;
+import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.entity.Transaction;
 import com.qloudd.payments.exceptions.*;
 import com.qloudd.payments.exceptions.AccountCreationException.AccountCreationExceptionType;
@@ -12,14 +13,17 @@ import com.qloudd.payments.exceptions.AccountUpdateException.AccountUpdateExcept
 import com.qloudd.payments.repository.AccountRepository;
 import com.qloudd.payments.repository.AccountTypeRepository;
 import com.qloudd.payments.repository.TransactionRepository;
+import com.qloudd.payments.service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AccountServiceImpl implements AccountService {
@@ -62,6 +66,20 @@ public class AccountServiceImpl implements AccountService {
             throw new AccountTypeCreationException(accountType, AccountTypeCreationException.Type.UNEXPECTED);
         }
         return accountType;
+    }
+
+    @Override
+    public Page<AccountType> get() {
+        LOG.update(Function.ACCOUNT_CREATION, "List Products");
+        try {
+            LOG.info("Listing account type | params [ ] ...");
+            Pageable pageable = Pageable.unpaged();
+            return accountTypeRepository.findAll(pageable);
+        } catch (Exception e) {
+            LOG.error("Account type List Failed - Unexpected Error | {}", e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @Override
@@ -137,32 +155,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    @Transactional
-    public Transaction transfer(BigDecimal amount, String sourceAccNumber, String destAccNumber) throws Exception {
-        Optional<Account> sourceAccountResult = accountRepository.findByAccountNumber(sourceAccNumber);
-        Optional<Account> destAccountResult = accountRepository.findByAccountNumber(destAccNumber);
-        if (sourceAccountResult.isEmpty()) {
-            LOG.warn("Source account not found : {}", sourceAccNumber);
-            throw new Exception("Source not found");
-        }
-        if (destAccountResult.isEmpty()) {
-            LOG.warn("Destination account not found {}", destAccNumber);
-            throw new Exception("Destination not found");
-        }
-        Transaction transaction = new Transaction(amount, sourceAccountResult.get(), destAccountResult.get());
-        transactionRepository.save(transaction);
-
-        debit(amount, transaction.getSourceAccount());
-
-        credit(amount, transaction.getDestAccount());
-
-        transaction.setStatus(Transaction.Status.COMPLETED_OK);
-        transactionRepository.save(transaction);
-
-        return transaction;
-    }
-
-    @Override
     public void debit(BigDecimal amount, Account account) throws Exception {
         if (account.getBalance().compareTo(amount) < 0) {
             throw new Exception("Source account has insufficient funds");
@@ -175,6 +167,11 @@ public class AccountServiceImpl implements AccountService {
     public void credit(BigDecimal amount, Account account) {
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
+    }
+
+    @Override
+    public AccountRepository getRepository() {
+        return accountRepository;
     }
 
     @Override
@@ -196,7 +193,13 @@ public class AccountServiceImpl implements AccountService {
         return updatedAccountType;
     }
 
-    private Account getAccount(Long accountId) throws AccountNotFoundException {
+    @Override
+    public Transaction transfer(BigDecimal amount, String sourceAccNumber, String destAccNumber) throws Exception {
+        return null;
+    }
+
+    @Override
+    public Account getAccount(Long accountId) throws AccountNotFoundException {
         Optional<Account> accountResult = this.accountRepository.findById(accountId);
         if (accountResult.isEmpty()) {
             throw new AccountNotFoundException(accountId);

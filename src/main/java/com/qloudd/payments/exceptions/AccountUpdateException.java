@@ -9,8 +9,8 @@ import com.qloudd.payments.entity.Account;
 
 public class AccountUpdateException extends Exception {
     public enum AccountUpdateExceptionType {
-        ACCOUNT_NOT_FOUND("Account Number {accountNumber} does not exist"),
-        UNEXPECTED("Unexpected error while updating account {accountNumber}");
+        ACCOUNT_NOT_FOUND("Account Number __ACCOUNT_NO__ does not exist"),
+        UNEXPECTED("Unexpected error while updating account __ACCOUNT_NO__");
 
         private final String messageTemplate;
         private AccountUpdateExceptionType(String messageTemplate) {

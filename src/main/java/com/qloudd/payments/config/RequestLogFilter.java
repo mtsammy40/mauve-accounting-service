@@ -37,7 +37,6 @@ public class RequestLogFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response,
                          FilterChain chain) throws IOException, ServletException {
-        try {
             HttpServletRequest httpServletRequest = (HttpServletRequest) request;
             HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
@@ -51,9 +50,6 @@ public class RequestLogFilter implements Filter {
       
             log.info(requestLogBuilder.toString());
             chain.doFilter(request, response);
-        } catch (Throwable a) {
-            log.error(a.getMessage());
-        }
     }
 
     static String extractPostRequestBody(HttpServletRequest request) throws IOException {

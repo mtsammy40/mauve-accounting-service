@@ -18,12 +18,7 @@ public class QlouddPaymentsApplication {
 
     Logger LOG = LoggerFactory.getLogger(QlouddPaymentsApplication.class);
 
-
     public static void main(String[] args) {
         SpringApplication.run(QlouddPaymentsApplication.class, args);
-
-//        startGrpcServer();
     }
-
-
 }

@@ -2,37 +2,60 @@ package com.qloudd.payments.commons;
 
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.AccountType;
+import com.qloudd.payments.entity.Product;
+import com.qloudd.payments.entity.Transaction;
+import com.qloudd.payments.exceptions.TransactionException;
 import com.qloudd.payments.exceptions.ValidationException;
 import com.qloudd.payments.model.ChargeConfiguration;
 import com.qloudd.payments.model.RangeConfigs;
 import com.qloudd.payments.repository.AccountRepository;
 import com.qloudd.payments.repository.AccountTypeRepository;
-import com.qloudd.payments.service.AccountServiceImpl;
+import com.qloudd.payments.repository.ProductRepository;
+import com.qloudd.payments.repository.TransactionRepository;
+import org.springframework.util.StringUtils;
 
+import javax.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class Validator {
-    private CustomLogger LOG = new CustomLogger(AccountServiceImpl.class);
+    private CustomLogger LOG = new CustomLogger(Validator.class);
 
     private AccountRepository accountRepository;
     private AccountTypeRepository accountTypeRepository;
+    private ProductRepository productRepository;
+    private TransactionRepository transactionRepository;
 
+    public Validator(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     public Validator(AccountRepository accountRepository, AccountTypeRepository accountTypeRepository) {
         this.accountRepository = accountRepository;
         this.accountTypeRepository = accountTypeRepository;
     }
 
+    public Validator(AccountRepository accountRepository, ProductRepository productRepository) {
+        this.accountRepository = accountRepository;
+        this.productRepository = productRepository;
+    }
+
+
+    public Validator(AccountRepository accountRepository, ProductRepository productRepository, TransactionRepository transactionRepository) {
+        this.accountRepository = accountRepository;
+        this.productRepository = productRepository;
+        this.transactionRepository = transactionRepository;
+    }
+
     public void test(AccountType accountType, Function function) throws ValidationException {
         LOG.update(Function.ACCOUNT_TYPE_VALIDATION, accountType.getName());
-        LOG.info("Validating... ");
+        LOG.info("Validating | Function : {} | ... ", function);
         List<String> errorList = new ArrayList<>();
-        if(function.equals(Function.ACCOUNT_TYPE_CREATION)) {
+        if (function.equals(Function.ACCOUNT_TYPE_CREATION)) {
             // if Creation - ID should be null
-            if(accountType.getId() != null) {
+            if (accountType.getId() != null) {
                 errorList.add("[id] should be null on creation");
             }
         }
@@ -61,9 +84,52 @@ public class Validator {
             }
         }
         // charges
-        if (accountType.getConfigurations().getCharges() != null
-                && accountType.getConfigurations().getCharges().size() > 0) {
-            List<ChargeConfiguration> charges = accountType.getConfigurations().getCharges();
+        List<String> chargeConfigurationErrors = validateChargeConfiguration(accountType.getConfigurations().getCharges());
+        errorList.addAll(chargeConfigurationErrors);
+
+        // throw error to return to caller
+        if (errorList.size() > 0) {
+            throw new ValidationException(errorList);
+        }
+    }
+
+    public void test(Product product, Function function) throws ValidationException {
+        LOG.update(Function.PRODUCT_VALIDATION, product.getName());
+        LOG.info("Validating... ");
+        List<String> errorList = new ArrayList<>();
+        // If Creation, id should be null
+        if (function == Function.PRODUCT_CREATION) {
+            if (product.getId() != null) {
+                errorList.add("[id] should be null on creation");
+            }
+        }
+
+        // If update, id should not be null
+        if (function.equals(Function.PRODUCT_UPDATE)) {
+            if (product.getId() == null) {
+                errorList.add("[id] should not be null on update");
+            }
+        }
+
+        // Name is required
+        if (!StringUtils.hasText(product.getName())) {
+            errorList.add("Field [ name ] is required");
+        }
+
+        // validate charge configurations
+        List<String> chargeConfigurationErrors = validateChargeConfiguration(product.getConfiguration().getCharges());
+        errorList.addAll(chargeConfigurationErrors);
+
+        if (errorList.size() > 0) {
+            throw new ValidationException(errorList);
+        }
+    }
+
+
+    private List<String> validateChargeConfiguration(@Nullable List<ChargeConfiguration> charges) throws ValidationException {
+        List<String> errorList = new ArrayList<>();
+        if (charges != null
+                && charges.size() > 0) {
             // maximum of 10 charges
             if (charges.size() > 10) {
                 errorList
@@ -155,10 +221,100 @@ public class Validator {
                 }
             }
         }
-        // throw error to return to caller
-        if (errorList.size() > 0) {
-            throw new ValidationException(errorList);
+        return errorList;
+    }
+
+    public void test(Transaction transaction, Function function) throws ValidationException {
+        Account source = null;
+        Account destination = null;
+        Product product = null;
+        List<String> errors = new ArrayList<>();
+        // ThirdPartyReference cannot be null
+        if (!StringUtils.hasText(transaction.getThirdPartyReference())) {
+            errors.add("Field [ thirdPartyReference ] is required");
+        } else {
+            if (transactionRepository.existsByThirdPartyReference(transaction.getThirdPartyReference())) {
+                errors.add("Transaction with thirdPartyReference [" + transaction.getThirdPartyReference() + "] already exists");
+            }
+        }
+        // Source account cannot be null
+        if (transaction.getSourceAccount() == null || transaction.getSourceAccount().getId() == null) {
+            errors.add("Field [ sourceAccount ][ id ] is required");
+        } else {
+            // No need to run this test is dest account is not provided
+            // Account must exist
+            Optional<Account> accountResult = accountRepository.findById(transaction.getSourceAccount().getId());
+            if (accountResult.isEmpty()) {
+                errors.add("Account with id [ " + transaction.getDestAccount().getId() + " ] does not exist");
+            } else {
+                source = accountResult.get();
+            }
+        }
+        // Destination account cannot be null
+        if (transaction.getDestAccount() == null || transaction.getDestAccount().getId() == null) {
+            errors.add("Field [ destinationAccount ][ id ] is required");
+        } else {
+            // No need to run this test if dest account is not provided
+            // Account must exist
+            Optional<Account> accountResult = accountRepository.findById(transaction.getDestAccount().getId());
+            if (accountResult.isEmpty()) {
+                errors.add("Account with id [ " + transaction.getDestAccount().getId() + " ] does not exist");
+            } else {
+                destination = accountResult.get();
+            }
+        }
+        // product cannot be null
+        if (transaction.getProduct() == null || transaction.getProduct().getId() == null) {
+            errors.add("Field [ product ][ id ] is required");
+        } else {
+            // No need to run this test if product is not provided
+            // Product must exist
+            Optional<Product> productResult = productRepository.findById(transaction.getProduct().getId());
+            if (productResult.isEmpty()) {
+                errors.add("Product id [ " + transaction.getProduct().getId() + " ] does not exist or is inactive");
+            } else {
+                product = productResult.get();
+            }
+        }
+        // amount cannot be null
+        if (transaction.getAmount() == null) {
+            errors.add("Field [ amount ] is required");
+        } else {
+            // No need to run this test if amount is null
+            // amount must be a valid positive number
+            if (transaction.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+                errors.add("Field [ amount ] must be a valid positive number");
+            }
+            // amount must be greater than min debit limit
+            if (source != null) {
+                // Amount should be greater than the min debit allowed
+                BigDecimal minDebitLimit = source.getAccountType().getConfigurations().getMinDebitLimit();
+                if (transaction.getAmount().compareTo(minDebitLimit) < 0) {
+                    errors.add("Minimum allowed debit for this account is [ " + source.getAccountType().getConfigurations().getMinDebitLimit() + " ]");
+                }
+                BigDecimal maxDebitLimit = source.getAccountType().getConfigurations().getMaxDebitLimit();
+                // Amount should be less than max allowed debit
+                if (transaction.getAmount().compareTo(maxDebitLimit) > 0) {
+                    errors.add("Maximum allowed debit for this account is [ " + source.getAccountType().getConfigurations().getMinDebitLimit() + " ]");
+                }
+            }
+            // product
+            if (product != null) {
+                // amount must be greater than product min limit
+                BigDecimal minTransactionAmount = product.getConfiguration().getMinTransactionAmount();
+                if (transaction.getAmount().compareTo(minTransactionAmount) < 0) {
+                    errors.add("Minimum allowed amount for this product is [ " + product.getConfiguration().getMinTransactionAmount() + " ]");
+                }
+                // amount must be smaller than product max limit
+                BigDecimal maxTransactionAmount = product.getConfiguration().getMaxTransactionAmount();
+                if (transaction.getAmount().compareTo(maxTransactionAmount) > 0) {
+                    errors.add("Maximum allowed amount for this product is [ " + product.getConfiguration().getMinTransactionAmount() + " ]");
+                }
+            }
         }
 
+        if (errors.size() > 0) {
+            throw new ValidationException(errors);
+        }
     }
 }

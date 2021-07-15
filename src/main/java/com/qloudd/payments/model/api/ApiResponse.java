@@ -1,20 +1,20 @@
 package com.qloudd.payments.model.api;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class ApiResponse <T> {
-    private List<String> errors;
+public class ApiResponse<T> {
+    private List<String> errors = new ArrayList<>();
     private T data;
 
     public ApiResponse() {
     }
 
     public ApiResponse(T data) {
-        this.data = data;
-    }
-
-    public ApiResponse(List<String> errors, T data) {
-        this.errors = errors;
         this.data = data;
     }
 
@@ -32,5 +32,16 @@ public class ApiResponse <T> {
 
     public void setErrors(List<String> errors) {
         this.errors = errors;
+    }
+
+    public ApiResponse<T> addError(String error) {
+        this.errors.add(error);
+        return this;
+    }
+
+    public ApiResponse<T> addErrors(List<String> errorList) {
+        errorList = errorList != null ? errorList : Collections.emptyList();
+        this.errors.addAll(errorList);
+        return this;
     }
 }

@@ -10,10 +10,6 @@ import java.util.Date;
 @Table(name = "Transaction")
 public class Transaction {
 
-    public enum Types {
-        DEBIT, CREDIT
-    }
-
     public enum Status {
         INITIATED, COMPLETED_OK, COMPLETED_FAILED, PROCESSING, UNKNOWN
     }
@@ -22,22 +18,25 @@ public class Transaction {
     private Account sourceAccount;
     private Account destAccount;
     private BigDecimal amount;
-    private Types transactionType;
+    private Product product;
     private Status status;
     private Date initiated;
     private Date completed;
     private String misc;
     private String thirdPartyReference;
 
+    @Transient
+    private BigDecimal totalAmount;
+
     public Transaction() {
     }
 
-    public Transaction(BigDecimal amount, Account sourceAccount, Account destAccount) {
+    public Transaction(BigDecimal amount, Account sourceAccount, Account destAccount, Product product) {
         this.sourceAccount = sourceAccount;
         this.destAccount = destAccount;
         this.amount = amount;
-        this.transactionType = Types.DEBIT;
         this.status = Status.PROCESSING;
+        this.product = product;
     }
 
     @Id
@@ -57,14 +56,14 @@ public class Transaction {
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
-
-    @Enumerated(EnumType.STRING)
-    public Types getTransactionType() {
-        return transactionType;
+    @ManyToOne()
+    @JoinColumn(name = "product")
+    public Product getProduct() {
+        return product;
     }
 
-    public void setTransactionType(Types transactionType) {
-        this.transactionType = transactionType;
+    public void setProduct(Product transactionType) {
+        this.product = transactionType;
     }
 
     @Enumerated(EnumType.STRING)
@@ -135,4 +134,19 @@ public class Transaction {
         this.completed = new Date(System.currentTimeMillis());
         return this;
     }
+
+    public Transaction fail() {
+        this.status = Status.COMPLETED_FAILED;
+        this.completed = new Date(System.currentTimeMillis());
+        return this;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
 }

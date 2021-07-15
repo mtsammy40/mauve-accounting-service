@@ -6,7 +6,13 @@ public enum Function {
     ACCOUNT_GET("Acc_Gt"),
     ACCOUNT_TRANSACTION("Acc_Tr"),
     ACCOUNT_TYPE_CREATION("AccTy_Cr"),
-    ACCOUNT_TYPE_VALIDATION("AccTy_Vd");
+    ACCOUNT_TYPE_VALIDATION("AccTy_Vd"),
+    PRODUCT_VALIDATION("Pr_Vd"),
+    PRODUCT_CREATION("Pr_Cr"),
+    PRODUCT_GET_ONE("Pr_Get"),
+    PRODUCT_LIST("Pr_Li"),
+    PRODUCT_UPDATE("Pr_Up"),
+    TRANSACTION_TRANSFER("Tr_Tr");
 
     private final String code;
 
