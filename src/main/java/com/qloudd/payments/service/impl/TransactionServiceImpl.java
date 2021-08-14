@@ -8,10 +8,13 @@ import com.qloudd.payments.entity.AccountingEntry;
 import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.entity.Transaction;
 import com.qloudd.payments.entity.AccountingEntry.Status;
-import com.qloudd.payments.exceptions.AccountNotFoundException;
-import com.qloudd.payments.exceptions.AccountUpdateException;
+import com.qloudd.payments.enums.CommandCode;
+import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.exceptions.NotImplementedException;
+import com.qloudd.payments.exceptions.accounts.AccountNotFoundException;
+import com.qloudd.payments.exceptions.accounts.AccountUpdateException;
 import com.qloudd.payments.exceptions.AccountingException;
-import com.qloudd.payments.exceptions.ProductNotFoundException;
+import com.qloudd.payments.exceptions.product.ProductNotFoundException;
 import com.qloudd.payments.exceptions.TransactionException;
 import com.qloudd.payments.exceptions.ValidationException;
 import com.qloudd.payments.exceptions.TransactionException.Type;
@@ -23,6 +26,7 @@ import com.qloudd.payments.repository.TransactionRepository;
 import com.qloudd.payments.service.AccountService;
 import com.qloudd.payments.service.ProductService;
 import com.qloudd.payments.service.TransactionService;
+import com.qloudd.payments.service.integration.PaymentGatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -45,14 +49,17 @@ public class TransactionServiceImpl implements TransactionService {
     private final ProductService productService;
     private final TransactionRepository transactionRepository;
     private final AccountingEntryRepository accountingEntryRepository;
+    private final PaymentGatewayService paymentGatewayService;
 
     @Autowired
     public TransactionServiceImpl(AccountService accountService, ProductService productService,
-            TransactionRepository transactionRepository, AccountingEntryRepository accountingEntryRepository) {
+            TransactionRepository transactionRepository, AccountingEntryRepository accountingEntryRepository,
+                                  PaymentGatewayService paymentGatewayService) {
         this.accountService = accountService;
         this.productService = productService;
         this.transactionRepository = transactionRepository;
         this.accountingEntryRepository = accountingEntryRepository;
+        this.paymentGatewayService = paymentGatewayService;
     }
 
     @Override
@@ -63,6 +70,7 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setInitiated(new Date(System.currentTimeMillis()));
         // validate input
         try {
+            LOG.info("Transaction initiated | Attempting validation... | {} ", transaction);
             new Validator(accountService.getRepository(), productService.getRepository(), transactionRepository)
                     .test(transaction, Function.TRANSACTION_TRANSFER);
             // validation passed, persist and continue
@@ -79,6 +87,15 @@ public class TransactionServiceImpl implements TransactionService {
             throw new TransactionException(transaction, TransactionException.Type.UNEXPECTED);
         }
 
+        // Execute accounting
+        doAccounting(transaction);
+
+        // Execute product
+
+        return transaction;
+    }
+
+    private void doAccounting(Transaction transaction) throws TransactionException {
         // start processing
         try {
             // Get the product and accounts details (Transaction details)
@@ -86,7 +103,7 @@ public class TransactionServiceImpl implements TransactionService {
             Account destAccount = null;
             Product product = null;
             try {
-                LOG.info("Getting transaction details...");
+                LOG.info("Enriching transaction details...");
                 sourceAccount = accountService.getAccount(transaction.getSourceAccount().getId());
                 destAccount = accountService.getAccount(transaction.getDestAccount().getId());
                 product = productService.getOne(transaction.getProduct().getId());
@@ -174,7 +191,7 @@ public class TransactionServiceImpl implements TransactionService {
             List<AccountingEntry> allAccountingEntries = new ArrayList<>();
             try {
                 LOG.info("Starting debits and credits ...");
-                // Debit total deductable amount from source account
+                // Debit total deductible amount from source account
                 allAccountingEntries.add(createAccountingEntry(AccountingEntry.Type.DEBIT, transaction,
                         transaction.getTotalAmount(), transaction.getSourceAccount()));
                 // credit configured charge accounts
@@ -195,7 +212,7 @@ public class TransactionServiceImpl implements TransactionService {
 
             // Update transaction
             try {
-                LOG.info("Updating transaction status...");
+                LOG.info("Updating transaction status to complete ...");
                 transaction.complete();
                 transactionRepository.save(transaction);
             } catch (Exception e) {
@@ -209,8 +226,29 @@ public class TransactionServiceImpl implements TransactionService {
             transactionRepository.save(transaction);
             throw e;
         }
+    }
 
-        return transaction;
+    private void executeTransaction(Transaction transaction) {
+        try {
+            transaction.getProduct().getConfiguration().getCommands()
+                    .forEach((command) -> {
+                        CommandCode commandCode = CommandCode.resolve(command.getCode());
+                        if(commandCode.equals(CommandCode.MAUVE_PAYMENT_GATEWAY)) {
+                            // Mauve
+                            try {
+                                paymentGatewayService.execute(transaction);
+                            } catch (NotImplementedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+
+        } catch (Exception e) {
+            // Fail transaction
+            transaction.fail();
+            transactionRepository.save(transaction);
+            throw e;
+        }
     }
 
     private BigDecimal getChargeAmount(Transaction transaction, ChargeConfiguration chargeConfiguration)
@@ -268,14 +306,14 @@ public class TransactionServiceImpl implements TransactionService {
 
     private AccountingEntry handle(AccountingEntry accountingEntry) throws AccountingException {
         if (accountingEntry == null) {
-            throw new AccountingException(null, AccountingException.Type.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(null, ErrorCode.INVALID_ACCOUNTING_ENTRY);
         }
         if (accountingEntry.getType().equals(AccountingEntry.Type.CREDIT)) {
             return credit(accountingEntry);
         } else if (accountingEntry.getType().equals(AccountingEntry.Type.DEBIT)) {
             return debit(accountingEntry);
         } else {
-            throw new AccountingException(accountingEntry, AccountingException.Type.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
         }
     }
 
@@ -287,7 +325,7 @@ public class TransactionServiceImpl implements TransactionService {
             LOG.info("Debiting account | [{}] | with amount | [{}]", accountingEntry.getAccount().getId(), accountingEntry.getAmount());
             accountService.update(accountingEntry.getAccount().getId(), accountingEntry.getAccount());
         } catch (AccountUpdateException e) {
-            throw new AccountingException(accountingEntry, AccountingException.Type.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
         }
 
         accountingEntry.setStatus(AccountingEntry.Status.SUCCESS);
@@ -302,7 +340,7 @@ public class TransactionServiceImpl implements TransactionService {
             LOG.info("Crediting account | [{}] | with amount | [{}]", accountingEntry.getAccount().getId(), accountingEntry.getAmount());
             accountService.update(accountingEntry.getAccount().getId(), accountingEntry.getAccount());
         } catch (AccountUpdateException e) {
-            throw new AccountingException(accountingEntry, AccountingException.Type.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
         }
 
         accountingEntry.setStatus(AccountingEntry.Status.SUCCESS);

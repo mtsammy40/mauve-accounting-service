@@ -1,16 +1,13 @@
 package com.qloudd.payments.entity;
 
-import com.qloudd.payments.commons.Function;
 import com.qloudd.payments.commons.converters.JsonToMapConverter;
+import com.qloudd.payments.entity.converters.StatusConverter;
 import com.qloudd.payments.model.AccountTypeConfiguration;
 import com.vladmihalcea.hibernate.type.json.JsonStringType;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table
@@ -19,6 +16,10 @@ import java.util.List;
         typeClass = JsonStringType.class
 )
 public class AccountType {
+    public enum Status {
+        ACTIVE, SUSPENDED, CLOSED
+    }
+
     private Long id;
     private String name;
     private String status;
@@ -49,6 +50,7 @@ public class AccountType {
         this.name = name;
     }
 
+    @Convert(attributeName = "status", converter = StatusConverter.class)
     public String getStatus() {
         return status;
     }

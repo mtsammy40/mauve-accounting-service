@@ -2,7 +2,7 @@ package com.qloudd.payments.network.service;
 
 import com.qloudd.payments.config.GrpcConfig;
 import com.qloudd.payments.entity.Account;
-import com.qloudd.payments.exceptions.AccountCreationException;
+import com.qloudd.payments.exceptions.accounts.AccountCreationException;
 import com.qloudd.payments.proto.AccountCreationRequest;
 import com.qloudd.payments.proto.AccountCreationResponse;
 import com.qloudd.payments.proto.AccountServiceGrpc;

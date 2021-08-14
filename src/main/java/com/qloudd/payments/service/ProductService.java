@@ -1,14 +1,12 @@
 package com.qloudd.payments.service;
 
 import com.qloudd.payments.entity.Product;
-import com.qloudd.payments.exceptions.ProductCreationException;
-import com.qloudd.payments.exceptions.ProductNotFoundException;
-import com.qloudd.payments.exceptions.ProductUpdateException;
+import com.qloudd.payments.exceptions.product.ProductCreationException;
+import com.qloudd.payments.exceptions.product.ProductNotFoundException;
+import com.qloudd.payments.exceptions.product.ProductUpdateException;
 import com.qloudd.payments.repository.ProductRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public interface ProductService {

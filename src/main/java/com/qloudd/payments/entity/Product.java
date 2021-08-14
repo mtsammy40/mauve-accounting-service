@@ -1,20 +1,24 @@
 package com.qloudd.payments.entity;
 
-import com.qloudd.payments.commons.converters.JsonToMapConverter;
 import com.qloudd.payments.entity.converters.ProductConfigurationConverter;
-import com.qloudd.payments.entity.converters.ProductStatusConverter;
-import com.qloudd.payments.enums.ProductStatus;
+import com.qloudd.payments.entity.converters.StatusConverter;
+import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.model.ProductConfiguration;
+import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
 
 import javax.persistence.*;
-
+@TypeDefs({
+        @TypeDef(name = "jsonb", typeClass = JsonBinaryType.class)
+})
 @Entity
 @Table(name = "TransactionType")
 public class Product {
     private Long id;
     private String name;
-    private ProductStatus status;
+    private Status status;
     private ProductConfiguration configuration;
 
     public void setId(Long id) {
@@ -35,9 +39,8 @@ public class Product {
         this.name = name;
     }
 
-    @Type(type = "json")
-    @Column(name = "configurations", columnDefinition = "json")
-    @Convert(attributeName = "configurations", converter = ProductConfigurationConverter.class)
+    @Type(type = "jsonb")
+    @Column(name = "configurations", columnDefinition = "jsonb")
     public ProductConfiguration getConfiguration() {
         return configuration;
     }
@@ -46,12 +49,12 @@ public class Product {
         this.configuration = chargeConfiguration;
     }
 
-    @Convert(attributeName = "configurations", converter = ProductStatusConverter.class)
-    public ProductStatus getStatus() {
+    @Convert(attributeName = "status", converter = StatusConverter.class)
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(ProductStatus productStatus) {
-        this.status = productStatus;
+    public void setStatus(Status status) {
+        this.status = status;
     }
 }

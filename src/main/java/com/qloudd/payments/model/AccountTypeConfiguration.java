@@ -8,6 +8,7 @@ public class AccountTypeConfiguration {
     private BigDecimal maxDebitLimit;
     private BigDecimal minDebitLimit;
     private String accountPrefix;
+    private Long subscriptions;
 
     public List<ChargeConfiguration> getCharges() {
         return charges;

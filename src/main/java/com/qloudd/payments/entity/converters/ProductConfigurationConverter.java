@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qloudd.payments.commons.converters.JsonToMapConverter;
 import com.qloudd.payments.model.ProductConfiguration;
+import com.qloudd.payments.model.command.Command;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

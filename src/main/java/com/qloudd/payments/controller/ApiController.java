@@ -5,6 +5,13 @@ import com.qloudd.payments.entity.AccountType;
 import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.entity.Transaction;
 import com.qloudd.payments.exceptions.*;
+import com.qloudd.payments.exceptions.accountType.AccountTypeCreationException;
+import com.qloudd.payments.exceptions.accounts.AccountCreationException;
+import com.qloudd.payments.exceptions.accounts.AccountNotFoundException;
+import com.qloudd.payments.exceptions.accounts.AccountTrashException;
+import com.qloudd.payments.exceptions.accounts.AccountUpdateException;
+import com.qloudd.payments.exceptions.product.ProductCreationException;
+import com.qloudd.payments.exceptions.product.ProductUpdateException;
 import com.qloudd.payments.model.api.ApiResponse;
 import com.qloudd.payments.service.AccountService;
 import com.qloudd.payments.service.ProductService;
@@ -90,6 +97,18 @@ public class ApiController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+    @DeleteMapping("/accounts/{id}")
+    public ResponseEntity<Account> trashAccount(@PathVariable Long id) {
+        try {
+            Account account = accountService.trash(id);
+            return ResponseEntity.of(Optional.of(account));
+        } catch (AccountTrashException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getAccount());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
     // Configurations
     @PostMapping("/accounts/types")
@@ -99,7 +118,7 @@ public class ApiController {
             return ResponseEntity.of(Optional.of(new ApiResponse<>(accountType)));
         } catch (AccountTypeCreationException e) {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
-                    .body(new ApiResponse<AccountType>(accountType).addErrors(e.getErrors()));
+                    .body(new ApiResponse<AccountType>(accountType).addErrors(e.getDetails()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -141,7 +160,7 @@ public class ApiController {
             return ResponseEntity.of(Optional.of(new ApiResponse<>(productResult)));
         } catch (ProductCreationException e) {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
-                    .body(new ApiResponse<Product>(product).addErrors(e.getErrors()));
+                    .body(new ApiResponse<Product>(product).addErrors(e.getDetails()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

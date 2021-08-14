@@ -1,13 +1,17 @@
 package com.qloudd.payments.commons;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.AccountType;
 import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.entity.Transaction;
-import com.qloudd.payments.exceptions.TransactionException;
+import com.qloudd.payments.enums.CommandCode;
 import com.qloudd.payments.exceptions.ValidationException;
 import com.qloudd.payments.model.ChargeConfiguration;
+import com.qloudd.payments.model.ProductConfiguration;
 import com.qloudd.payments.model.RangeConfigs;
+import com.qloudd.payments.model.command.Command;
+import com.qloudd.payments.model.integration.MauvePaymentGatewayConfig;
 import com.qloudd.payments.repository.AccountRepository;
 import com.qloudd.payments.repository.AccountTypeRepository;
 import com.qloudd.payments.repository.ProductRepository;
@@ -18,6 +22,7 @@ import javax.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 public class Validator {
@@ -116,12 +121,95 @@ public class Validator {
             errorList.add("Field [ name ] is required");
         }
 
-        // validate charge configurations
-        List<String> chargeConfigurationErrors = validateChargeConfiguration(product.getConfiguration().getCharges());
-        errorList.addAll(chargeConfigurationErrors);
+        // Configuration is required
+        if (product.getConfiguration() == null) {
+            errorList.add("Field [ configuration ] is required");
+        } else {
+            // Configuration is set
+            ProductConfiguration configuration = product.getConfiguration();
+
+            // Atleast one product command should be configured
+            if (configuration.getCommands() == null || configuration.getCommands().isEmpty()) {
+                errorList.add("At least one command should be set in Field [ commands ]");
+            } else {
+                List<String> productCommandErrors = validateProductCommands(configuration.getCommands());
+                errorList.addAll(productCommandErrors);
+            }
+
+            // validate charge configurations
+            List<String> chargeConfigurationErrors = validateChargeConfiguration(product.getConfiguration().getCharges());
+            errorList.addAll(chargeConfigurationErrors);
+        }
 
         if (errorList.size() > 0) {
             throw new ValidationException(errorList);
+        }
+    }
+
+    private List<String> validateProductCommands(List<Command> commands) {
+        List<String> errorList = new ArrayList<>();
+        commands.parallelStream().forEach((command) -> {
+            // command must have name set
+            if (!StringUtils.hasText(command.getCode())) {
+                errorList.add("Field [code] is required");
+            } else {
+                // command is present -> It Must exist
+                CommandCode commandCode = null;
+                try {
+                    commandCode = CommandCode.resolve(command.getCode());
+                } catch (NoSuchElementException e) {
+                    errorList.add(e.getMessage());
+                }
+
+                // Validate Service Specific fields
+                if(commandCode != null) {
+                    if(commandCode.equals(CommandCode.MAUVE_PAYMENT_GATEWAY)) {
+                        // apiKey must be present
+                        MauvePaymentGatewayConfig mauvePaymentGatewayConfig = null;
+                        try {
+                            mauvePaymentGatewayConfig = new ObjectMapper()
+                                    .convertValue(command.getConfiguration(), MauvePaymentGatewayConfig.class);
+                            // Api key is required
+                            if(!StringUtils.hasText(mauvePaymentGatewayConfig.getApiKey())) {
+                                errorList.add("Field [ apiKey ] must be set for Mauve Payment Configuration");
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            errorList.add("Invalid command configuration object");
+                        }
+
+                    }
+                }
+            }
+        });
+        return errorList;
+    }
+
+    public void test(Account account, Function function) {
+        List<String> errors = new ArrayList<>();
+        if (account == null) {
+            errors.add("Account data is null.");
+        } else {
+            // Account Number cannot be null for creation
+            if (function.equals(Function.ACCOUNT_CREATION)) {
+                if (!StringUtils.hasText(account.getAccountNumber())) {
+                    errors.add("Invalid or missing Field [ accountNumber ]");
+                }
+            }
+            // Account type is required
+            if (account.getAccountType() == null || account.getAccountType().getId() == null) {
+                errors.add("Fields [accountType] and [accountType][id] are required");
+            } else {
+                // Has Account type -> Account Type should exist and be status:active
+                accountTypeRepository
+                        .findById(account.getAccountType().getId())
+                        .ifPresentOrElse((accountType) -> {
+                            LOG.debug("Account type exists | {}", accountType);
+                        }, () -> {
+                            LOG.debug("Account type id: [ {} ] not found ", account.getId());
+                            errors.add("Account Type does not exist or is not active.");
+                        });
+            }
         }
     }
 

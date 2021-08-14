@@ -3,12 +3,12 @@ package com.qloudd.payments.enums;
 import java.util.Arrays;
 import java.util.Optional;
 
-public enum ProductStatus {
-    NEW("NEW"), ACTIVE("ACTIVE"), CLOSED("CLOSED");
+public enum Status {
+    NEW("NEW"), ACTIVE("ACTIVE"), SUSPENDED("SUSPENDED"), CLOSED("CLOSED");
 
     private final String status;
 
-    ProductStatus(String status) {
+    Status(String status) {
         this.status = status;
     }
 
@@ -16,9 +16,9 @@ public enum ProductStatus {
         return status;
     }
 
-    public static ProductStatus resolve(String status) {
-        Optional<ProductStatus> productStatusOptional =  Arrays
-                .stream(ProductStatus.values())
+    public static Status resolve(String status) {
+        Optional<Status> productStatusOptional =  Arrays
+                .stream(Status.values())
                 .filter((productStatus -> productStatus.getStatus().equalsIgnoreCase(status)))
                 .findFirst();
         return productStatusOptional.orElseThrow();

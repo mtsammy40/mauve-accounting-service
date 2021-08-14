@@ -1,5 +1,6 @@
 package com.qloudd.payments.entity;
 
+import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.proto.AccountCreationRequest;
 
 import javax.persistence.*;
@@ -21,6 +22,13 @@ public class Account {
     @NotNull()
     private AccountType accountType;
     private BigDecimal balance;
+    private Status status;
+
+    public Account() {}
+
+    public Account(Long accountId) {
+        this.id = accountId;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -64,6 +72,14 @@ public class Account {
 
     public void setBalance(BigDecimal balance) {
         this.balance = balance;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
     }
 
     @Override
