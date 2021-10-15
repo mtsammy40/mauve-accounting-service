@@ -11,10 +11,7 @@ import javax.persistence.*;
 
 @Entity
 @Table
-@TypeDef(
-        name = "json",
-        typeClass = JsonStringType.class
-)
+@TypeDef(name = "json", typeClass = JsonStringType.class)
 public class AccountType {
     public enum Status {
         ACTIVE, SUSPENDED, CLOSED

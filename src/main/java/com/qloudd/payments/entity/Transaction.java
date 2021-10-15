@@ -1,17 +1,30 @@
 package com.qloudd.payments.entity;
 
+import com.qloudd.payments.enums.CommandCode;
+import com.qloudd.payments.exceptions.ValidationException;
+import com.qloudd.payments.model.api.TransactionDto;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import org.apache.tomcat.jni.Local;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.util.StringUtils;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 @Entity
 @Table(name = "Transaction")
+@AllArgsConstructor
+@Builder
 public class Transaction {
 
     public enum Status {
-        INITIATED, COMPLETED_OK, COMPLETED_FAILED, PROCESSING, UNKNOWN
+        NEW, INITIATED, COMPLETED_OK, COMPLETED_FAILED, PROCESSING, UNKNOWN
     }
 
     private Long id;
@@ -20,8 +33,8 @@ public class Transaction {
     private BigDecimal amount;
     private Product product;
     private Status status;
-    private Date initiated;
-    private Date completed;
+    private LocalDateTime initiated;
+    private LocalDateTime completed;
     private String misc;
     private String thirdPartyReference;
 
@@ -56,6 +69,7 @@ public class Transaction {
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
+
     @ManyToOne()
     @JoinColumn(name = "product")
     public Product getProduct() {
@@ -75,21 +89,21 @@ public class Transaction {
         this.status = status;
     }
 
-    public Date getInitiated() {
+    public LocalDateTime getInitiated() {
         return initiated;
     }
 
     @CreationTimestamp
     @Temporal(value = TemporalType.TIMESTAMP)
-    public void setInitiated(Date initiated) {
+    public void setInitiated(LocalDateTime initiated) {
         this.initiated = initiated;
     }
 
-    public Date getCompleted() {
+    public LocalDateTime getCompleted() {
         return completed;
     }
 
-    public void setCompleted(Date compledted) {
+    public void setCompleted(LocalDateTime compledted) {
         this.completed = compledted;
     }
 
@@ -128,16 +142,16 @@ public class Transaction {
     public void setDestAccount(Account destAccount) {
         this.destAccount = destAccount;
     }
-    
+
     public Transaction complete() {
         this.status = Status.COMPLETED_OK;
-        this.completed = new Date(System.currentTimeMillis());
+        this.completed = LocalDateTime.now();
         return this;
     }
 
     public Transaction fail() {
         this.status = Status.COMPLETED_FAILED;
-        this.completed = new Date(System.currentTimeMillis());
+        this.completed = LocalDateTime.now();
         return this;
     }
 
@@ -147,6 +161,10 @@ public class Transaction {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public void validate() {
+       // todo implement
     }
 
 }

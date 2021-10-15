@@ -13,6 +13,7 @@ import com.qloudd.payments.exceptions.accounts.AccountUpdateException;
 import com.qloudd.payments.exceptions.product.ProductCreationException;
 import com.qloudd.payments.exceptions.product.ProductUpdateException;
 import com.qloudd.payments.model.api.ApiResponse;
+import com.qloudd.payments.model.api.TransactionDto;
 import com.qloudd.payments.service.AccountService;
 import com.qloudd.payments.service.ProductService;
 import com.qloudd.payments.service.TransactionService;
@@ -24,11 +25,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController()
 @CrossOrigin()
-@RequestMapping("/v1")
+@RequestMapping("/mpg")
 public class ApiController {
     private static Logger LOG = LoggerFactory.getLogger(ApiController.class);
 
@@ -44,10 +49,10 @@ public class ApiController {
     }
 
     @PostMapping("/transfer")
-    public ResponseEntity<ApiResponse<Transaction>> transfer(@RequestBody() Transaction transactionRequest) {
+    public ResponseEntity<ApiResponse<Transaction>> transfer(@RequestBody() TransactionDto transactionDto) {
         Transaction transaction = null;
         try {
-            transaction = transactionService.transfer(transactionRequest);
+            transaction = transactionService.transfer(transactionDto);
         } catch (TransactionException e) {
             if (e.getType().equals(TransactionException.Type.VALIDATION)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -59,7 +64,17 @@ public class ApiController {
         return ResponseEntity.of(Optional.of(new ApiResponse<>(transaction)));
     }
 
-    // Accounts
+    // -- Accounts
+    @GetMapping("/accounts")
+    public ResponseEntity<List<Account>> getAccounts() {
+        try {
+            List<Account> account = accountService.getAccounts();
+            return ResponseEntity.of(Optional.of(account));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/accounts/{accountNumber}")
     public ResponseEntity<Account> getAccount(@PathVariable String accountNumber) {
         try {
@@ -73,12 +88,13 @@ public class ApiController {
     }
 
     @PostMapping("/accounts")
-    public ResponseEntity<Account> createAccount(@RequestBody() Account account) {
+    public ResponseEntity<ApiResponse<Account>> createAccount(@RequestBody() Account account) {
         try {
             account = accountService.create(account);
-            return ResponseEntity.of(Optional.of(account));
+            return ResponseEntity.accepted().body((new ApiResponse<Account>(account)));
         } catch (AccountCreationException e) {
-            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(e.getAccount());
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(new ApiResponse<Account>(account).addErrors(e.getDetails()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -115,7 +131,7 @@ public class ApiController {
     public ResponseEntity<ApiResponse<AccountType>> createAccountType(@RequestBody() AccountType accountType) {
         try {
             AccountType accountTypeResult = accountService.createAccountType(accountType);
-            return ResponseEntity.of(Optional.of(new ApiResponse<>(accountType)));
+            return ResponseEntity.of(Optional.of(new ApiResponse<>(accountTypeResult)));
         } catch (AccountTypeCreationException e) {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
                     .body(new ApiResponse<AccountType>(accountType).addErrors(e.getDetails()));
@@ -161,8 +177,6 @@ public class ApiController {
         } catch (ProductCreationException e) {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
                     .body(new ApiResponse<Product>(product).addErrors(e.getDetails()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -175,9 +189,6 @@ public class ApiController {
         } catch (ProductUpdateException e) {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
                     .body(new ApiResponse<Product>().addError(e.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -193,4 +204,12 @@ public class ApiController {
         }
     }
 
+    @ExceptionHandler({ ConstraintViolationException.class })
+    public ResponseEntity<ApiResponse<?>> handleException(ConstraintViolationException e) {
+        List<String> violations = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.toList());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>().addErrors(violations));
+    }
 }

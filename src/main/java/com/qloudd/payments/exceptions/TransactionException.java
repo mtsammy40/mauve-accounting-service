@@ -47,6 +47,11 @@ public class TransactionException extends Exception {
         this.type = type;
     }
 
+    public TransactionException(Type type) {
+        super(type.messageTemplate);
+        this.type = type;
+    }
+
     public Transaction getTransaction() {
         return transaction;
     }

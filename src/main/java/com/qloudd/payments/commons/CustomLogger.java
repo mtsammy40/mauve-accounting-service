@@ -14,7 +14,7 @@ public class CustomLogger {
     }
 
     public void info(String log, Object... objects) {
-        LOG.info("{} | {} | " + log, functionCode.getCode(), uniqueIdentifier, objects);
+        LOG.info("{} | {} | " + log + " | {}", functionCode.getCode(), uniqueIdentifier, objects);
     }
 
     public void debug(String log, Object... objects) {

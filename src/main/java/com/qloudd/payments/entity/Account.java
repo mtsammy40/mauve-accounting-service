@@ -1,7 +1,11 @@
 package com.qloudd.payments.entity;
 
+import com.qloudd.payments.entity.converters.StatusConverter;
 import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.proto.AccountCreationRequest;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
@@ -12,6 +16,8 @@ import java.math.BigDecimal;
 
 @Entity
 @Table
+@Builder
+@AllArgsConstructor
 public class Account {
     private Long id;
     @NotBlank()
@@ -24,7 +30,8 @@ public class Account {
     private BigDecimal balance;
     private Status status;
 
-    public Account() {}
+    public Account() {
+    }
 
     public Account(Long accountId) {
         this.id = accountId;
@@ -74,6 +81,7 @@ public class Account {
         this.balance = balance;
     }
 
+    @Enumerated(value = EnumType.STRING)
     public Status getStatus() {
         return status;
     }
@@ -94,5 +102,5 @@ public class Account {
         account.setUserId(String.valueOf(request.getUserId()));
         return account;
     }
-    
+
 }

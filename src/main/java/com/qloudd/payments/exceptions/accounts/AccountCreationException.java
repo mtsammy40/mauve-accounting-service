@@ -11,4 +11,7 @@ public class AccountCreationException extends AccountException {
     public AccountCreationException(Account account, ErrorCode errorCode) {
         super(account, errorCode);
     }
+    public AccountCreationException(Account account, List<String> errors, ErrorCode errorCode) {
+        super(account, errors, errorCode);
+    }
 }

@@ -2,6 +2,7 @@ package com.qloudd.payments.commons;
 
 public enum Function {
     ACCOUNT_CREATION("Acc_Cr"),
+    ACCOUNT_VALIDATION("Acc_Va"),
     ACCOUNT_UPDATE("Acc_Up"),
     ACCOUNT_GET("Acc_Gt"),
     ACCOUNT_TRANSACTION("Acc_Tr"),
@@ -12,7 +13,8 @@ public enum Function {
     PRODUCT_GET_ONE("Pr_Get"),
     PRODUCT_LIST("Pr_Li"),
     PRODUCT_UPDATE("Pr_Up"),
-    TRANSACTION_TRANSFER("Tr_Tr");
+    TRANSACTION_TRANSFER("Tr_Tr"),
+    GENERIC("Ge");
 
     private final String code;
 

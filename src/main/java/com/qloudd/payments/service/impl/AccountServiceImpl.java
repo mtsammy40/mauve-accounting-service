@@ -1,12 +1,14 @@
 package com.qloudd.payments.service.impl;
 
+import com.qloudd.payments.adapters.AccountTypeValidation;
+import com.qloudd.payments.adapters.AccountValidator;
 import com.qloudd.payments.commons.CustomLogger;
 import com.qloudd.payments.commons.Function;
-import com.qloudd.payments.commons.Validator;
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.AccountType;
 import com.qloudd.payments.entity.Transaction;
 import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.exceptions.*;
 import com.qloudd.payments.exceptions.accountType.AccountTypeCreationException;
 import com.qloudd.payments.exceptions.accounts.AccountNotFoundException;
@@ -23,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -36,7 +39,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Autowired
     public AccountServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository,
-            AccountTypeRepository accountTypeRepository) {
+                              AccountTypeRepository accountTypeRepository) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.accountTypeRepository = accountTypeRepository;
@@ -47,7 +50,8 @@ public class AccountServiceImpl implements AccountService {
         LOG.update(Function.ACCOUNT_TYPE_CREATION, accountType.getName());
         // Validate input
         try {
-            new Validator(accountRepository, accountTypeRepository).test(accountType, Function.ACCOUNT_TYPE_CREATION);
+            new AccountTypeValidation(accountRepository, accountTypeRepository)
+                    .validate(accountType, Function.ACCOUNT_TYPE_CREATION);
         } catch (ValidationException e) {
             LOG.error("Account Type Creation Failed | Validation | {}", e.getErrorList());
             throw new AccountTypeCreationException(accountType, ErrorCode.VALIDATION_FAILED,
@@ -89,17 +93,11 @@ public class AccountServiceImpl implements AccountService {
         // Validate user
         try {
             LOG.info("Commencing account creation. Validating input...");
-            assert account.getUserId() != null;
-            assert account.getAccountType() != null && account.getAccountType().getId() != null;
-            // Check that the account type exists
-            Optional<AccountType> accountType = accountTypeRepository.findById(account.getAccountType().getId());
-            if (accountType.isEmpty()) {
-                LOG.error("AccountType id [ {} ] not found or inactive.", account.getAccountType().getId());
-                throw new AccountCreationException(account, ErrorCode.VALIDATION_FAILED);
-            }
-        } catch (AccountCreationException e) {
-            LOG.error("Error creating account | details validation", e);
-            throw e;
+            new AccountValidator(accountRepository, accountTypeRepository)
+                    .validate(account, Function.ACCOUNT_CREATION);
+        } catch (ValidationException e) {
+            LOG.error("Error creating account | validation | {}", e.getErrorList());
+            throw new AccountCreationException(account, e.getErrorList(), ErrorCode.VALIDATION_FAILED);
         } catch (Exception e) {
             LOG.error("Error creating account | details validation", e);
             e.printStackTrace();
@@ -121,6 +119,7 @@ public class AccountServiceImpl implements AccountService {
         try {
             LOG.info("Setting defaults...");
             account.setBalance(BigDecimal.ZERO);
+            account.setStatus(Status.ACTIVE);
             LOG.info("Persisting account | {}", account);
             this.accountRepository.save(account);
         } catch (Exception e) {
@@ -132,11 +131,11 @@ public class AccountServiceImpl implements AccountService {
     }
 
     /**
-     * @Deprecated No need to update account. Just close it and start another
      * @param accountId
      * @param account
      * @return
      * @throws AccountUpdateException
+     * @Deprecated No need to update account. Just close it and start another
      */
     @Override
     public Account update(Long accountId, Account account) throws AccountUpdateException {
@@ -185,6 +184,24 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public Account getActiveAccount(String accountNumber) throws AccountNotFoundException {
+        Optional<Account> accountResult = accountRepository.findByAccountNumber(accountNumber);
+        if (accountResult.isEmpty()) {
+            throw new AccountNotFoundException(accountNumber);
+        }
+        return accountResult.get();
+    }
+
+    @Override
+    public Account getActiveAccount(Long accountId) throws AccountNotFoundException {
+        Optional<Account> accountResult = accountRepository.findByIdAndStatus(accountId, Status.ACTIVE);
+        if (accountResult.isEmpty()) {
+            throw new AccountNotFoundException(accountId);
+        }
+        return accountResult.get();
+    }
+
+    @Override
     public AccountType updateAccountType(Long id, AccountType updatedAccountType) throws NotFoundException {
         Optional<AccountType> accountTypeResult = accountTypeRepository.findById(id);
         if (accountTypeResult.isEmpty()) {
@@ -208,8 +225,13 @@ public class AccountServiceImpl implements AccountService {
         return accountResult.get();
     }
 
+    @Override
+    public List<Account> getAccounts() {
+        return accountRepository.findAll();
+    }
+
     private String generateAccountNumber() throws AccountNotFoundException {
-        Optional<Account> latestAccountResult = accountRepository.getTopOrderByIdDesc();
+        Optional<Account> latestAccountResult = accountRepository.findTopByIdNotNullOrderByIdDesc();
         if (latestAccountResult.isEmpty()) {
             throw new AccountNotFoundException("Latest created account not found!");
         }

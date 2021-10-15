@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 public interface AccountService {
@@ -22,6 +23,9 @@ public interface AccountService {
     Account trash(Long accountId) throws AccountTrashException;
     Account getAccount(String accountNumber) throws AccountNotFoundException;
     Account getAccount(Long accountId) throws AccountNotFoundException;
+    List<Account> getAccounts();
+    Account getActiveAccount(String accountNumber) throws AccountNotFoundException;
+    Account getActiveAccount(Long accountId) throws AccountNotFoundException;
     AccountType createAccountType(AccountType accountType) throws AccountTypeCreationException;
     Page<AccountType> get();
     AccountType updateAccountType(Long id, AccountType accountType) throws NotFoundException;

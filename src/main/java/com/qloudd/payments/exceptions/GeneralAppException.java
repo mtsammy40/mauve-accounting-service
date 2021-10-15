@@ -2,11 +2,12 @@ package com.qloudd.payments.exceptions;
 
 import com.qloudd.payments.enums.ErrorCode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class GeneralAppException extends Exception {
     private ErrorCode errorCode;
-    private List<String> details;
+    private List<String> details = new ArrayList<>();
 
     public GeneralAppException(ErrorCode errorCode) {
         super(errorCode.getMessage());

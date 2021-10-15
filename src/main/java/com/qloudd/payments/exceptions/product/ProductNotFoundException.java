@@ -8,4 +8,8 @@ public class ProductNotFoundException extends ProductException {
     public ProductNotFoundException(Long productId) {
         super(ErrorCode.PRODUCT_NOT_FOUND, new Product());
     }
+
+    public ProductNotFoundException(String commandCode) {
+        super(ErrorCode.PRODUCT_NOT_FOUND, new Product());
+    }
 }
