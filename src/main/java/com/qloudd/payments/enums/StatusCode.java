@@ -2,7 +2,8 @@ package com.qloudd.payments.enums;
 
 import org.springframework.http.HttpStatus;
 
-public enum ErrorCode {
+public enum StatusCode {
+    OK("K001", HttpStatus.OK, "Ok"),
     // auth errors
     UNAUTHORIZED("A001", HttpStatus.UNAUTHORIZED, "Unauthorized"),
     // caused by client input
@@ -13,13 +14,14 @@ public enum ErrorCode {
     NON_EMPTY_ACCOUNT("V005", HttpStatus.EXPECTATION_FAILED, "Account is not empty."),
     PRODUCT_NOT_FOUND("V006", HttpStatus.NOT_FOUND, "Product not found."),
     // 500-like errors (server faults and unexpected exceptions)
+    PAYMENT_FAILED("E002", HttpStatus.INTERNAL_SERVER_ERROR, "Payment failed"),
     UNEXPECTED_ERROR("E001", HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 
     private final String code;
     private final HttpStatus httpStatus;
     private final String message;
 
-    ErrorCode(String code, HttpStatus httpStatus, String message) {
+    StatusCode(String code, HttpStatus httpStatus, String message) {
         this.code = code;
         this.httpStatus = httpStatus;
         this.message = message;

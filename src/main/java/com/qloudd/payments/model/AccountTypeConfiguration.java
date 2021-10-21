@@ -1,36 +1,18 @@
 package com.qloudd.payments.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.util.List;
 
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
 public class AccountTypeConfiguration {
     private List<ChargeConfiguration> charges;
     private BigDecimal maxDebitLimit;
     private BigDecimal minDebitLimit;
     private String accountPrefix;
-    private Long subscriptions;
-
-    public List<ChargeConfiguration> getCharges() {
-        return charges;
-    }
-
-    public void setCharges(List<ChargeConfiguration> charges) {
-        this.charges = charges;
-    }
-
-    public BigDecimal getMaxDebitLimit() {
-        return maxDebitLimit;
-    }
-
-    public void setMaxDebitLimit(BigDecimal maxDebitLimit) {
-        this.maxDebitLimit = maxDebitLimit;
-    }
-
-    public BigDecimal getMinDebitLimit() {
-        return minDebitLimit;
-    }
-
-    public void setMinDebitLimit(BigDecimal minDebitLimit) {
-        this.minDebitLimit = minDebitLimit;
-    }
 }

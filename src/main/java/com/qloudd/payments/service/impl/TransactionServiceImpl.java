@@ -3,13 +3,10 @@ package com.qloudd.payments.service.impl;
 import com.qloudd.payments.adapters.TransactionValidator;
 import com.qloudd.payments.commons.CustomLogger;
 import com.qloudd.payments.commons.Function;
-import com.qloudd.payments.entity.Account;
-import com.qloudd.payments.entity.AccountingEntry;
-import com.qloudd.payments.entity.Product;
-import com.qloudd.payments.entity.Transaction;
+import com.qloudd.payments.entity.*;
 import com.qloudd.payments.entity.AccountingEntry.Status;
 import com.qloudd.payments.enums.CommandCode;
-import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.StatusCode;
 import com.qloudd.payments.exceptions.NotImplementedException;
 import com.qloudd.payments.exceptions.accounts.AccountNotFoundException;
 import com.qloudd.payments.exceptions.accounts.AccountUpdateException;
@@ -21,6 +18,7 @@ import com.qloudd.payments.exceptions.TransactionException.Type;
 import com.qloudd.payments.model.ChargeConfiguration;
 import com.qloudd.payments.model.ChargeType;
 import com.qloudd.payments.model.RangeConfigs;
+import com.qloudd.payments.model.TransactionMisc;
 import com.qloudd.payments.model.api.TransactionDto;
 import com.qloudd.payments.repository.AccountingEntryRepository;
 import com.qloudd.payments.repository.TransactionRepository;
@@ -65,18 +63,17 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    @Transactional(rollbackOn = Exception.class)
     public Transaction transfer(@Valid TransactionDto transactionDto) throws TransactionException {
         LOG.update(Function.TRANSACTION_TRANSFER, transactionDto.getThirdPartyReference());
         Transaction transaction = null;
         // validate input
         try {
             Account sourceAccount = Account.builder()
-                    .accountNumber(transactionDto.getSourceAccount().getAccountNumber())
-                            .id(transaction.getSourceAccount().getId()).build();
+                    .accountNumber(transactionDto.getSource().getAccountNumber())
+                    .id(transactionDto.getSource().getAccountId()).build();
             Account destAccount = Account.builder()
-                    .accountNumber(transactionDto.getDestAccount().getAccountNumber())
-                    .id(transaction.getDestAccount().getId()).build();
+                    .accountNumber(transactionDto.getDestination().getAccountNumber())
+                    .id(transactionDto.getDestination().getAccountId()).build();
             LOG.info("Transaction initiated | Attempting transformation... | {} ", transactionDto);
             transaction = Transaction.builder()
                     .thirdPartyReference(transactionDto.getThirdPartyReference())
@@ -84,6 +81,11 @@ public class TransactionServiceImpl implements TransactionService {
                     .amount(transactionDto.getAmount())
                     .sourceAccount(sourceAccount)
                     .destAccount(destAccount)
+                    .destIdentifier(transactionDto.getDestination().getAccountNumber())
+                    .initiator(transactionDto.getInitiator())
+                    .misc(TransactionMisc.builder()
+                            .description(transactionDto.getTransactionDesc())
+                            .build())
                     .build();
             new TransactionValidator(productService.getRepository(), accountService.getRepository(), transactionRepository)
                     .validate(transaction, Function.TRANSACTION_TRANSFER);
@@ -102,7 +104,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         try {
             // Initiated after validation
-            transaction.setInitiated(LocalDateTime.now());
+            transaction.setInitiated(Calendar.getInstance());
             // validation passed, persist and continue
             transaction.setStatus(Transaction.Status.PROCESSING);
             transactionRepository.save(transaction);
@@ -116,13 +118,32 @@ public class TransactionServiceImpl implements TransactionService {
         doAccounting(transaction);
 
         // Execute product
-        LOG.info("Execute Product ... ");
+        try {
+            transaction.setProcessingStage(Transaction.ProcessingStage.EXECUTING);
+            transactionRepository.save(transaction);
 
+            paymentGatewayService.execute(transaction);
+            transaction.complete();
+        } catch (NotImplementedException e) {
+            e.printStackTrace();
+            transaction.fail(e.getMessage());
+            throw new TransactionException(transaction, Type.UNEXPECTED);
+        }
+
+        transactionRepository.save(transaction);
         return transaction;
     }
 
-    private void doAccounting(Transaction transaction) throws TransactionException {
+    @Transactional(rollbackOn = Exception.class)
+    void doAccounting(Transaction transaction) throws TransactionException {
         // start processing
+        try {
+            transaction.setProcessingStage(Transaction.ProcessingStage.ACCOUNTING);
+            transactionRepository.save(transaction);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new TransactionException(Type.UNEXPECTED);
+        }
         try {
             // Get the product and accounts details (Transaction details)
             Account sourceAccount = null;
@@ -160,6 +181,8 @@ public class TransactionServiceImpl implements TransactionService {
                         return createAccountingEntry(transaction, chargeConfig);
                     } catch (AccountNotFoundException e) {
                         throw new RuntimeException("Account not found for charge..." + chargeConfig.getName());
+                    } catch (Exception e) {
+                        throw new RuntimeException("Error occured during charge calculation (source)" + chargeConfig.getName());
                     }
                 }).collect(Collectors.toList());
                 // Get minimal charge required in account for transaction to occur
@@ -169,7 +192,7 @@ public class TransactionServiceImpl implements TransactionService {
             } catch (Exception e) {
                 LOG.error("Transaction Failed - Unexpected | Charge Calculation (source) | {}", e.getMessage());
                 e.printStackTrace();
-                throw new TransactionException(transaction, TransactionException.Type.PRODUCT_NOT_FOUND);
+                throw new TransactionException(transaction, Type.UNEXPECTED);
             }
 
             // Calculate product charges
@@ -182,7 +205,7 @@ public class TransactionServiceImpl implements TransactionService {
                     try {
                         return createAccountingEntry(transaction, chargeConfig);
                     } catch (AccountNotFoundException e) {
-                        throw new RuntimeException("Account not found for charge..." + chargeConfig.getName());
+                        throw new RuntimeException("Account not found for charge..." + chargeConfig.getName(), e);
                     }
                 }).collect(Collectors.toList());
                 // Get minimal charge required in account for transaction to occur
@@ -190,7 +213,8 @@ public class TransactionServiceImpl implements TransactionService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 LOG.info("Total product charges | {}", totalSourceAccountCharges);
             } catch (Exception e) {
-                LOG.warn("Transaction Failed - Unexpected | Charge Calculation (product) | {}", e.getMessage());
+                LOG.error("Transaction Failed - Unexpected | Charge Calculation (product) | {}", e.getMessage());
+                e.printStackTrace();
                 throw new TransactionException(transaction, TransactionException.Type.UNEXPECTED);
             }
 
@@ -201,11 +225,11 @@ public class TransactionServiceImpl implements TransactionService {
                         .add(transaction.getAmount());
                 transaction.setTotalAmount(requiredMinAmount);
                 if (sourceAccount.getBalance().compareTo(requiredMinAmount) < 0) {
-                    LOG.warn("Insufficient funds for transaction. Current balance | {}", sourceAccount.getBalance());
+                    LOG.info("Insufficient funds for transaction. Current balance | {}", sourceAccount.getBalance());
                     throw new TransactionException(transaction, Type.INSUFFICIENT_FUNDS);
                 }
             } catch (TransactionException e) {
-                LOG.warn("Transaction Failed | Balance check | {}", e.getMessage());
+                LOG.info("Transaction Failed | Balance check | {}", e.getMessage());
                 throw e;
             } catch (Exception e) {
                 LOG.error("Transaction Failed - Unexpected | Balance Check | {}", e.getMessage());
@@ -238,8 +262,8 @@ public class TransactionServiceImpl implements TransactionService {
 
             // Update transaction
             try {
-                LOG.info("Updating transaction status to complete ...");
-                transaction.complete();
+                LOG.info("Updating transaction - accounting complete ...");
+                transaction.setStatus(Transaction.Status.INITIATED);
                 transactionRepository.save(transaction);
             } catch (Exception e) {
                 LOG.error("Transaction Failed - Unexpected | Transaction Status Update | {}", e.getMessage());
@@ -248,33 +272,13 @@ public class TransactionServiceImpl implements TransactionService {
             }
         } catch (TransactionException e) {
             // Fail transaction
-            transaction.fail();
+            transaction.fail(e.getMessage());
             transactionRepository.save(transaction);
             throw e;
         }
     }
 
-    private void executeTransaction(Transaction transaction) {
-        try {
-            transaction.getProduct().getConfiguration().getCommands()
-                    .forEach((command) -> {
-                        CommandCode commandCode = CommandCode.resolve(command.getCode());
-                        if (commandCode.equals(CommandCode.MAUVE_STK_PUSH)) {
-                            // Mauve
-                            try {
-                                paymentGatewayService.execute(transaction);
-                            } catch (NotImplementedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
-
-        } catch (Exception e) {
-            // Fail transaction
-            transaction.fail();
-            transactionRepository.save(transaction);
-            throw e;
-        }
+    private void executeTransaction(Transaction transaction) throws TransactionException, NotImplementedException {
     }
 
     private BigDecimal getChargeAmount(Transaction transaction, ChargeConfiguration chargeConfiguration)
@@ -319,7 +323,7 @@ public class TransactionServiceImpl implements TransactionService {
         try {
             chargeAmount = getChargeAmount(transaction, chargeConfig);
         } catch (Exception e) {
-            throw new RuntimeException("Could not get charges for chargeConfig | " + chargeConfig.getName());
+            throw new RuntimeException("Could not get charges for chargeConfig | " + chargeConfig.getName(), e);
         }
         Account account = accountService.getAccount(chargeConfig.getDestinationAccount());
         return createAccountingEntry(AccountingEntry.Type.CREDIT, transaction, chargeAmount, account);
@@ -332,14 +336,14 @@ public class TransactionServiceImpl implements TransactionService {
 
     private AccountingEntry handle(AccountingEntry accountingEntry) throws AccountingException {
         if (accountingEntry == null) {
-            throw new AccountingException(null, ErrorCode.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(null, StatusCode.INVALID_ACCOUNTING_ENTRY);
         }
         if (accountingEntry.getType().equals(AccountingEntry.Type.CREDIT)) {
             return credit(accountingEntry);
         } else if (accountingEntry.getType().equals(AccountingEntry.Type.DEBIT)) {
             return debit(accountingEntry);
         } else {
-            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, StatusCode.INVALID_ACCOUNTING_ENTRY);
         }
     }
 
@@ -351,7 +355,7 @@ public class TransactionServiceImpl implements TransactionService {
             LOG.info("Debiting account | [{}] | with amount | [{}]", accountingEntry.getAccount().getId(), accountingEntry.getAmount());
             accountService.update(accountingEntry.getAccount().getId(), accountingEntry.getAccount());
         } catch (AccountUpdateException e) {
-            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, StatusCode.INVALID_ACCOUNTING_ENTRY);
         }
 
         accountingEntry.setStatus(AccountingEntry.Status.SUCCESS);
@@ -366,7 +370,7 @@ public class TransactionServiceImpl implements TransactionService {
             LOG.info("Crediting account | [{}] | with amount | [{}]", accountingEntry.getAccount().getId(), accountingEntry.getAmount());
             accountService.update(accountingEntry.getAccount().getId(), accountingEntry.getAccount());
         } catch (AccountUpdateException e) {
-            throw new AccountingException(accountingEntry, ErrorCode.INVALID_ACCOUNTING_ENTRY);
+            throw new AccountingException(accountingEntry, StatusCode.INVALID_ACCOUNTING_ENTRY);
         }
 
         accountingEntry.setStatus(AccountingEntry.Status.SUCCESS);

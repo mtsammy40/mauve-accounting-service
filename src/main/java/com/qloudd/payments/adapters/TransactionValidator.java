@@ -23,8 +23,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 public class TransactionValidator extends BasicValidator<Transaction> {
-    ProductRepository productRepository;
-    AccountRepository accountRepository;
     TransactionRepository transactionRepository;
 
     private Account destAccount;
@@ -47,6 +45,7 @@ public class TransactionValidator extends BasicValidator<Transaction> {
         } else {
             // No need to run this test is dest account is not provided
             // Account must exist
+            LOG.info("Source account {}", transaction.getSourceAccount(), accountRepository);
             Optional<Account> accountResult = accountRepository.findById(transaction.getSourceAccount().getId());
             if (accountResult.isEmpty()) {
                 errors.add("Account with id [ " + transaction.getDestAccount().getId() + " ] does not exist");

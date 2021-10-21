@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 public class CustomLogger {
     Logger LOG;
 
-    private String uniqueIdentifier;
-    private Function functionCode;
+    private String uniqueIdentifier = "NO_IDENTIFIER";
+    private Function functionCode = Function.GENERIC;
     
     public CustomLogger(Class<?> clazz) {
         LOG = LoggerFactory.getLogger(clazz);

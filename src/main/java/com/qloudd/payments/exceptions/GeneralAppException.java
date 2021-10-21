@@ -1,31 +1,31 @@
 package com.qloudd.payments.exceptions;
 
-import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.StatusCode;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class GeneralAppException extends Exception {
-    private ErrorCode errorCode;
+    private StatusCode statusCode;
     private List<String> details = new ArrayList<>();
 
-    public GeneralAppException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
+    public GeneralAppException(StatusCode statusCode) {
+        super(statusCode.getMessage());
+        this.statusCode = statusCode;
     }
 
-    public GeneralAppException(ErrorCode errorCode, List<String> details) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
+    public GeneralAppException(StatusCode statusCode, List<String> details) {
+        super(statusCode.getMessage());
+        this.statusCode = statusCode;
         this.details = details;
     }
 
-    public ErrorCode getErrorCode() {
-        return errorCode;
+    public StatusCode getErrorCode() {
+        return statusCode;
     }
 
-    public void setErrorCode(ErrorCode errorCode) {
-        this.errorCode = errorCode;
+    public void setErrorCode(StatusCode statusCode) {
+        this.statusCode = statusCode;
     }
 
     public List<String> getDetails() {

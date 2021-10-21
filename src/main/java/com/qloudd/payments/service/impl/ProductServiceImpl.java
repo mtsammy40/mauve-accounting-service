@@ -5,7 +5,7 @@ import com.qloudd.payments.commons.CustomLogger;
 import com.qloudd.payments.commons.Function;
 import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.enums.CommandCode;
-import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.StatusCode;
 import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.exceptions.product.ProductCreationException;
 import com.qloudd.payments.exceptions.product.ProductNotFoundException;
@@ -41,16 +41,15 @@ public class ProductServiceImpl implements ProductService {
         // Validate input
         try {
             LOG.info("Commencing product creation - validating input...");
-            new ProductValidator()
-                    .using(productRepository, accountRepository)
+            new ProductValidator(productRepository, accountRepository)
                     .validate(product, Function.PRODUCT_CREATION);
         } catch (ValidationException e) {
             LOG.warn("Product Creation Failed | Validation | {}", e.getErrorList());
-            throw new ProductCreationException(ErrorCode.VALIDATION_FAILED, e.getErrorList(), product);
+            throw new ProductCreationException(StatusCode.VALIDATION_FAILED, e.getErrorList(), product);
         } catch (Exception e) {
             LOG.error("Product Creation Failed - Unexpected Error | Validation | {}", e.getMessage());
             e.printStackTrace();
-            throw new ProductCreationException(product, ErrorCode.UNEXPECTED_ERROR);
+            throw new ProductCreationException(product, StatusCode.UNEXPECTED_ERROR);
         }
         // Add product configurations
 
@@ -61,7 +60,7 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             LOG.error("Product Creation Failed - Unexpected Error | Persistence | {}", e.getMessage());
             e.printStackTrace();
-            throw new ProductCreationException(product, ErrorCode.UNEXPECTED_ERROR);
+            throw new ProductCreationException(product, StatusCode.UNEXPECTED_ERROR);
         }
         return product;
     }
@@ -72,16 +71,15 @@ public class ProductServiceImpl implements ProductService {
         // validate input
         try {
             LOG.info("Validating product creation ...", product);
-            new ProductValidator()
-                    .using(productRepository, accountRepository)
+            new ProductValidator(productRepository, accountRepository)
                     .validate(product, Function.PRODUCT_CREATION);
         } catch (ValidationException e) {
             LOG.warn("Product Update Failed | Validation | {}", e.getMessage());
-            throw new ProductUpdateException(ErrorCode.VALIDATION_FAILED, e.getErrorList(), product);
+            throw new ProductUpdateException(StatusCode.VALIDATION_FAILED, e.getErrorList(), product);
         } catch (Exception e) {
             LOG.error("Product Update Failed - Unexpected Error | Validation | {}", e.getMessage());
             e.printStackTrace();
-            throw new ProductUpdateException(ErrorCode.UNEXPECTED_ERROR, product);
+            throw new ProductUpdateException(StatusCode.UNEXPECTED_ERROR, product);
         }
         // persist
         try {
@@ -90,7 +88,7 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             LOG.warn("Product Update Failed - Unexpected Error | Persistence | {}", e.getMessage());
             e.printStackTrace();
-            throw new ProductUpdateException(ErrorCode.UNEXPECTED_ERROR, product);
+            throw new ProductUpdateException(StatusCode.UNEXPECTED_ERROR, product);
         }
         return product;
     }

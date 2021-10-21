@@ -39,21 +39,6 @@ public class TransactionDtoValidator extends BasicValidator<TransactionDto> {
         return this;
     }
 
-    @Override
-    public <U> U transform(TransactionDto transactionDto, Class<U> destinationClass) throws Exception {
-        if (destinationClass.equals(Transaction.class)) {
-            return (U) Transaction.builder()
-                    .product(product)
-                    .sourceAccount(srcAccount)
-                    .thirdPartyReference(transactionDto.getThirdPartyReference())
-                    .amount(transactionDto.getAmount())
-                    .status(Transaction.Status.NEW)
-                    .build();
-        } else {
-            throw new Exception("Transformation from [" + transactionDto.getClass() + "] to [" + destinationClass + "] is not supported");
-        }
-    }
-
     protected Product requireValidProductId(Long productId) throws ValidationException {
         List<String> errors = new ArrayList<>();
         Product product = null;

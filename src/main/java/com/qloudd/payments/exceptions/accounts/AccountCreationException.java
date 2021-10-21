@@ -4,14 +4,14 @@ import java.util.*;
 
 import com.qloudd.payments.entity.Account;
 
-import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.StatusCode;
 
 public class AccountCreationException extends AccountException {
 
-    public AccountCreationException(Account account, ErrorCode errorCode) {
-        super(account, errorCode);
+    public AccountCreationException(Account account, StatusCode statusCode) {
+        super(account, statusCode);
     }
-    public AccountCreationException(Account account, List<String> errors, ErrorCode errorCode) {
-        super(account, errors, errorCode);
+    public AccountCreationException(Account account, List<String> errors, StatusCode statusCode) {
+        super(account, errors, statusCode);
     }
 }

@@ -1,14 +1,15 @@
 package com.qloudd.payments.adapters;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.qloudd.payments.commons.CustomLogger;
 import com.qloudd.payments.commons.Function;
-import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.Product;
 import com.qloudd.payments.enums.CommandCode;
 import com.qloudd.payments.exceptions.ValidationException;
 import com.qloudd.payments.model.command.Command;
 import com.qloudd.payments.model.integration.MauvePaymentGatewayConfig;
+import com.qloudd.payments.repository.AccountRepository;
+import com.qloudd.payments.repository.AccountTypeRepository;
+import com.qloudd.payments.repository.ProductRepository;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -16,6 +17,10 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 public class ProductValidator extends BasicValidator<Product> {
+
+    public ProductValidator(ProductRepository productRepository, AccountRepository accountRepository) {
+        super(productRepository, accountRepository, null);
+    }
 
     @Override
     public Validator<Product> validate(Product product, Function function) throws ValidationException {
@@ -65,7 +70,7 @@ public class ProductValidator extends BasicValidator<Product> {
 
                 // Validate Service Specific fields
                 if (commandCode != null) {
-                    if (commandCode.equals(CommandCode.MAUVE_STK_PUSH)) {
+                    if (commandCode.equals(CommandCode.MPESA_STK_PUSH)) {
                         // apiKey must be present
                         MauvePaymentGatewayConfig mauvePaymentGatewayConfig = null;
                         try {

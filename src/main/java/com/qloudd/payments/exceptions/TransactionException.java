@@ -13,9 +13,10 @@ public class TransactionException extends Exception {
         PRODUCT_NOT_FOUND("Account with id __DEST_ACCOUNT__ not found."),
         MIN_DEBIT_UNSATISFIED("Amount is less than the allowed min debit for source account id __SRC_ACCOUNT__"),
         DIRTY_DATA("System data is corrupted"),
-        CHARGE_BAND_NOT_FOUND("Charges missing for amount this amount for charge : [ __PRODUCT__ ]"),
+        CHARGE_BAND_NOT_FOUND("Charges missing for amount [ __AMOUNT__ ] for charge : [ __PRODUCT__ ]"),
         INVALID_CHARGE_CONFIG_TYPE("Charge config invalid : [ __CHARGE_CONFIG_TYPE__ ]"),
         INSUFFICIENT_FUNDS("Insufficient funds to complete transaction"),
+        CONFIGURATION_NOT_FOUND("Configuration for the transaction are not found"),
         UNEXPECTED("Unexpected error processing transaction __NAME__");
 
         private final String messageTemplate;

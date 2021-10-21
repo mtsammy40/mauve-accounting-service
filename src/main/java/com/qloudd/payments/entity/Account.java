@@ -12,13 +12,14 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Entity
 @Table
 @Builder
 @AllArgsConstructor
-public class Account {
+public class Account implements Serializable {
     private Long id;
     @NotBlank()
     private String userId;
@@ -98,7 +99,7 @@ public class Account {
 
     public static Account from(AccountCreationRequest request) {
         Account account = new Account();
-        account.setAccountType(new AccountType((long) request.getAccountTypeId()));
+        account.setAccountType(new AccountType((long) request.getAccountTypeId(), null, null, null));
         account.setUserId(String.valueOf(request.getUserId()));
         return account;
     }

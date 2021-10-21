@@ -5,13 +5,11 @@ import com.qloudd.payments.commons.Function;
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.exceptions.ValidationException;
-import com.qloudd.payments.exceptions.accounts.AccountNotFoundException;
 import com.qloudd.payments.model.ChargeConfiguration;
 import com.qloudd.payments.model.RangeConfigs;
 import com.qloudd.payments.repository.AccountRepository;
 import com.qloudd.payments.repository.AccountTypeRepository;
 import com.qloudd.payments.repository.ProductRepository;
-import com.qloudd.payments.service.impl.AccountServiceImpl;
 import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
@@ -46,11 +44,6 @@ public class BasicValidator<T> implements Validator<T> {
             throw new ValidationException(Collections.singletonList("Cannot be null"));
         }
         return this;
-    }
-
-    @Override
-    public <U> U transform(T object, Class<U> transformTo) throws Exception {
-        return null;
     }
 
     protected Account requireValidAccount(Account account) throws ValidationException {

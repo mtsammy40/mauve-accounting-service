@@ -24,7 +24,6 @@ public class BasicCommandValidator implements CommandValidator {
     private Account destinationAccount;
     private CommandCode commandCode;
 
-    @Override
     public BasicCommandValidator using(AccountService accountService, ProductService productService) {
         this.accountService = accountService;
         this.productService = productService;
@@ -38,17 +37,6 @@ public class BasicCommandValidator implements CommandValidator {
         requireValidAmount(transactionDto.getAmount());
     }
 
-    @Override
-    public Transaction buildTransaction(TransactionDto transactionDto) throws ProductNotFoundException {
-        Product product = productService.getOne(commandCode);
-        return Transaction.builder()
-                .amount(transactionDto.getAmount())
-                .sourceAccount(transactionDto.getDestAccount())
-                .destAccount(transactionDto.getDestAccount())
-                .thirdPartyReference(transactionDto.getThirdPartyReference())
-                .product(product)
-                .build();
-    }
 
     protected Account requireValidAccount(Account account) throws ValidationException {
         List<String> errors = new ArrayList<>();

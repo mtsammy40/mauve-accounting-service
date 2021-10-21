@@ -7,7 +7,7 @@ import com.qloudd.payments.commons.Function;
 import com.qloudd.payments.entity.Account;
 import com.qloudd.payments.entity.AccountType;
 import com.qloudd.payments.entity.Transaction;
-import com.qloudd.payments.enums.ErrorCode;
+import com.qloudd.payments.enums.StatusCode;
 import com.qloudd.payments.enums.Status;
 import com.qloudd.payments.exceptions.*;
 import com.qloudd.payments.exceptions.accountType.AccountTypeCreationException;
@@ -54,12 +54,12 @@ public class AccountServiceImpl implements AccountService {
                     .validate(accountType, Function.ACCOUNT_TYPE_CREATION);
         } catch (ValidationException e) {
             LOG.error("Account Type Creation Failed | Validation | {}", e.getErrorList());
-            throw new AccountTypeCreationException(accountType, ErrorCode.VALIDATION_FAILED,
+            throw new AccountTypeCreationException(accountType, StatusCode.VALIDATION_FAILED,
                     e.getErrorList());
         } catch (Exception e) {
             LOG.error("Account Type Creation Failed - Unexpected Error | Validation | {}", e.getMessage());
             e.printStackTrace();
-            throw new AccountTypeCreationException(accountType, ErrorCode.UNEXPECTED_ERROR);
+            throw new AccountTypeCreationException(accountType, StatusCode.UNEXPECTED_ERROR);
         }
         // Persist account type
         try {
@@ -68,7 +68,7 @@ public class AccountServiceImpl implements AccountService {
         } catch (Exception e) {
             LOG.error("Account type Creation Failed - Unexpected error | Persistence | {} ", e.getMessage());
             e.printStackTrace();
-            throw new AccountTypeCreationException(accountType, ErrorCode.UNEXPECTED_ERROR);
+            throw new AccountTypeCreationException(accountType, StatusCode.UNEXPECTED_ERROR);
         }
         return accountType;
     }
@@ -97,11 +97,11 @@ public class AccountServiceImpl implements AccountService {
                     .validate(account, Function.ACCOUNT_CREATION);
         } catch (ValidationException e) {
             LOG.error("Error creating account | validation | {}", e.getErrorList());
-            throw new AccountCreationException(account, e.getErrorList(), ErrorCode.VALIDATION_FAILED);
+            throw new AccountCreationException(account, e.getErrorList(), StatusCode.VALIDATION_FAILED);
         } catch (Exception e) {
             LOG.error("Error creating account | details validation", e);
             e.printStackTrace();
-            throw new AccountCreationException(account, ErrorCode.VALIDATION_FAILED);
+            throw new AccountCreationException(account, StatusCode.VALIDATION_FAILED);
         }
 
         // Create account number
@@ -112,7 +112,7 @@ public class AccountServiceImpl implements AccountService {
         } catch (Exception e) {
             LOG.error("Error creating account | Account number generation ", e.getMessage());
             e.printStackTrace();
-            throw new AccountCreationException(account, ErrorCode.UNEXPECTED_ERROR);
+            throw new AccountCreationException(account, StatusCode.UNEXPECTED_ERROR);
         }
 
         // Persist
@@ -125,7 +125,7 @@ public class AccountServiceImpl implements AccountService {
         } catch (Exception e) {
             LOG.error("Error creating account | persisting ", e.getMessage());
             e.printStackTrace();
-            throw new AccountCreationException(account, ErrorCode.UNEXPECTED_ERROR);
+            throw new AccountCreationException(account, StatusCode.UNEXPECTED_ERROR);
         }
         return account;
     }
@@ -145,7 +145,7 @@ public class AccountServiceImpl implements AccountService {
         try {
             existingAccount = getAccount(accountId);
         } catch (AccountNotFoundException e) {
-            throw new AccountUpdateException(account, ErrorCode.ACCOUNT_NOT_FOUND);
+            throw new AccountUpdateException(account, StatusCode.ACCOUNT_NOT_FOUND);
         }
         // Only copy update-able fields
         existingAccount.setAccountType(account.getAccountType());
@@ -245,19 +245,19 @@ public class AccountServiceImpl implements AccountService {
         try {
             account = getAccount(accountId);
         } catch (AccountNotFoundException e) {
-            throw new AccountTrashException(new Account(accountId), ErrorCode.ACCOUNT_NOT_FOUND);
+            throw new AccountTrashException(new Account(accountId), StatusCode.ACCOUNT_NOT_FOUND);
         }
 
         try {
             if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
                 LOG.warn("Cannot trash non-empty account | id: {} | balance: {} ", account.getId(),
                         account.getBalance());
-                throw new AccountTrashException(account, ErrorCode.NON_EMPTY_ACCOUNT);
+                throw new AccountTrashException(account, StatusCode.NON_EMPTY_ACCOUNT);
             }
             account.setBalance(BigDecimal.ZERO);
             update(accountId, account);
         } catch (Exception e) {
-            throw new AccountTrashException(account, ErrorCode.UNEXPECTED_ERROR);
+            throw new AccountTrashException(account, StatusCode.UNEXPECTED_ERROR);
         }
         return account;
     }

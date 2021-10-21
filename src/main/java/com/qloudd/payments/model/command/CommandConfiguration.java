@@ -2,7 +2,7 @@ package com.qloudd.payments.model.command;
 
 public class CommandConfiguration {
     private String clientId;
-    private String sendNotification;
+    private Boolean sendNotification;
 
     public String getClientId() {
         return clientId;
@@ -12,11 +12,11 @@ public class CommandConfiguration {
         this.clientId = clientId;
     }
 
-    public String getSendNotification() {
+    public Boolean getSendNotification() {
         return sendNotification;
     }
 
-    public void setSendNotification(String sendNotification) {
+    public void setSendNotification(Boolean sendNotification) {
         this.sendNotification = sendNotification;
     }
 }

@@ -8,7 +8,5 @@ import com.qloudd.payments.service.AccountService;
 import com.qloudd.payments.service.ProductService;
 
 public interface CommandValidator {
-    CommandValidator using(AccountService accountService, ProductService productService);
     void validate(TransactionDto transactionDto) throws ValidationException;
-    Transaction buildTransaction(TransactionDto transactionDto) throws ProductNotFoundException;
 }

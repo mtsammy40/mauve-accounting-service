@@ -2,24 +2,30 @@ package com.qloudd.payments.entity;
 
 import com.qloudd.payments.enums.CommandCode;
 import com.qloudd.payments.exceptions.ValidationException;
+import com.qloudd.payments.model.TransactionMisc;
 import com.qloudd.payments.model.api.TransactionDto;
+import com.vladmihalcea.hibernate.type.json.JsonStringType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.tomcat.jni.Local;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 import org.springframework.util.StringUtils;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 @Entity
 @Table(name = "Transaction")
+@TypeDef(name = "json", typeClass = JsonStringType.class)
 @AllArgsConstructor
+@NoArgsConstructor
+@Data
 @Builder
 public class Transaction {
 
@@ -27,144 +33,61 @@ public class Transaction {
         NEW, INITIATED, COMPLETED_OK, COMPLETED_FAILED, PROCESSING, UNKNOWN
     }
 
-    private Long id;
-    private Account sourceAccount;
-    private Account destAccount;
-    private BigDecimal amount;
-    private Product product;
-    private Status status;
-    private LocalDateTime initiated;
-    private LocalDateTime completed;
-    private String misc;
-    private String thirdPartyReference;
-
-    @Transient
-    private BigDecimal totalAmount;
-
-    public Transaction() {
-    }
-
-    public Transaction(BigDecimal amount, Account sourceAccount, Account destAccount, Product product) {
-        this.sourceAccount = sourceAccount;
-        this.destAccount = destAccount;
-        this.amount = amount;
-        this.status = Status.PROCESSING;
-        this.product = product;
+    public enum ProcessingStage {
+        ACCOUNTING, EXECUTING, REVERSING_ACCOUNTING, REVERSING_EXECUTION, COMPLETED
     }
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
+    private Long id;
+    @JoinColumn(referencedColumnName = "id")
+    @ManyToOne
+    private Account sourceAccount;
+    @JoinColumn(referencedColumnName = "id")
+    @ManyToOne
+    private Account destAccount;
+    private String destIdentifier;
+    private BigDecimal amount;
     @ManyToOne()
     @JoinColumn(name = "product")
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product transactionType) {
-        this.product = transactionType;
-    }
-
-    @Enumerated(EnumType.STRING)
-    public Status getStatus() {
-        return status;
-    }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getInitiated() {
-        return initiated;
-    }
-
+    private Product product;
+    @Enumerated(value = EnumType.STRING)
+    private Status status;
     @CreationTimestamp
     @Temporal(value = TemporalType.TIMESTAMP)
-    public void setInitiated(LocalDateTime initiated) {
-        this.initiated = initiated;
+    private Calendar initiated;
+    private Calendar completed;
+    @Type(type = "json")
+    private TransactionMisc misc;
+    private String thirdPartyReference;
+    private UUID initiator;
+    @Enumerated(value = EnumType.STRING)
+    private ProcessingStage processingStage;
+
+    @Transient
+    private BigDecimal totalAmount;
+
+    @Transient
+    boolean reverseTransaction;
+
+    public TransactionMisc getMisc() {
+        if (misc == null) {
+            return new TransactionMisc();
+        } else {
+            return misc;
+        }
     }
 
-    public LocalDateTime getCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(LocalDateTime compledted) {
-        this.completed = compledted;
-    }
-
-    public String getMisc() {
-        return misc;
-    }
-
-    public void setMisc(String misc) {
-        this.misc = misc;
-    }
-
-    public String getThirdPartyReference() {
-        return thirdPartyReference;
-    }
-
-    public void setThirdPartyReference(String thirdPartyReference) {
-        this.thirdPartyReference = thirdPartyReference;
-    }
-
-    @JoinColumn(referencedColumnName = "id")
-    @ManyToOne
-    public Account getSourceAccount() {
-        return sourceAccount;
-    }
-
-    public void setSourceAccount(Account sourceAccount) {
-        this.sourceAccount = sourceAccount;
-    }
-
-    @JoinColumn(referencedColumnName = "id")
-    @ManyToOne
-    public Account getDestAccount() {
-        return destAccount;
-    }
-
-    public void setDestAccount(Account destAccount) {
-        this.destAccount = destAccount;
-    }
-
-    public Transaction complete() {
+    public void complete() {
+        this.setCompleted(Calendar.getInstance());
+        this.setProcessingStage(ProcessingStage.COMPLETED);
         this.status = Status.COMPLETED_OK;
-        this.completed = LocalDateTime.now();
-        return this;
     }
 
-    public Transaction fail() {
-        this.status = Status.COMPLETED_FAILED;
-        this.completed = LocalDateTime.now();
-        return this;
+    public void fail(String reason) {
+        reason = reason == null ? "FAILED" : reason;
+        this.setCompleted(Calendar.getInstance());
+        this.setStatus(Status.COMPLETED_FAILED);
+        this.getMisc().setDescription(reason);
     }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
-    }
-
-    public void validate() {
-       // todo implement
-    }
-
 }

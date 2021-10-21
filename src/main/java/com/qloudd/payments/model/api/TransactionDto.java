@@ -16,6 +16,7 @@ import javax.validation.constraints.Size;
 
 import java.beans.Transient;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -40,6 +41,11 @@ public class TransactionDto {
 
     @NotNull(message = "Product Id must be set")
     private Long productId;
+
+    @NotNull(message = "Initiator must be set")
+    private UUID initiator;
+
+    private String transactionDesc;
 
     Account sourceAccount;
     Account destAccount;
